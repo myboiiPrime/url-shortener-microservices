@@ -1,0 +1,118 @@
+version: '3.8'
+
+services:
+  # Infrastructure Services
+  sqlserver:
+    image: mcr.microsoft.com/mssql/server:2022-latest
+    environment:
+      - ACCEPT_EULA=Y
+      - SA_PASSWORD=YourStrong@Passw0rd
+      - MSSQL_PID=Express
+    ports:
+      - "1433:1433"
+    volumes:
+      - sqlserver_data:/var/opt/mssql
+    networks:
+      - urlshortener-network
+
+  redis:
+    image: redis:7-alpine
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+    networks:
+      - urlshortener-network
+
+  rabbitmq:
+    image: rabbitmq:3-management-alpine
+    environment:
+      - RABBITMQ_DEFAULT_USER=admin
+      - RABBITMQ_DEFAULT_PASS=admin123
+    ports:
+      - "5672:5672"
+      - "15672:15672"
+    volumes:
+      - rabbitmq_data:/var/lib/rabbitmq
+    networks:
+      - urlshortener-network
+
+  # Microservices
+  user-service:
+    build:
+      context: .
+      dockerfile: src/UserService/Dockerfile
+    environment:
+      - ASPNETCORE_ENVIRONMENT=Production
+      - ASPNETCORE_URLS=http://+:80
+      - ConnectionStrings__DefaultConnection=Server=sqlserver;Database=UserServiceDb;User Id=sa;Password=YourStrong@Passw0rd;TrustServerCertificate=true;
+    ports:
+      - "7001:80"
+    depends_on:
+      - sqlserver
+    networks:
+      - urlshortener-network
+
+  url-shortening-service:
+    build:
+      context: .
+      dockerfile: src/UrlShorteningService/Dockerfile
+    environment:
+      - ASPNETCORE_ENVIRONMENT=Production
+      - ASPNETCORE_URLS=http://+:80
+      - ConnectionStrings__DefaultConnection=Server=sqlserver;Database=UrlShorteningServiceDb;User Id=sa;Password=YourStrong@Passw0rd;TrustServerCertificate=true;
+      - Redis__ConnectionString=redis:6379
+      - RabbitMQ__HostName=rabbitmq
+    ports:
+      - "7002:80"
+    depends_on:
+      - sqlserver
+      - redis
+      - rabbitmq
+    networks:
+      - urlshortener-network
+
+  analytics-service:
+    build:
+      context: .
+      dockerfile: src/AnalyticsService/Dockerfile
+    environment:
+      - ASPNETCORE_ENVIRONMENT=Production
+      - ASPNETCORE_URLS=http://+:80
+      - ConnectionStrings__DefaultConnection=Server=sqlserver;Database=AnalyticsServiceDb;User Id=sa;Password=YourStrong@Passw0rd;TrustServerCertificate=true;
+      - RabbitMQ__HostName=rabbitmq
+    ports:
+      - "7003:80"
+    depends_on:
+      - sqlserver
+      - rabbitmq
+    networks:
+      - urlshortener-network
+
+  api-gateway:
+    build:
+      context: .
+      dockerfile: src/ApiGateway/Dockerfile
+    environment:
+      - ASPNETCORE_ENVIRONMENT=Production
+      - ASPNETCORE_URLS=http://+:80
+      - Services__UserService__0__BaseUrl=http://user-service
+      - Services__UrlShorteningService__0__BaseUrl=http://url-shortening-service
+      - Services__AnalyticsService__0__BaseUrl=http://analytics-service
+    ports:
+      - "7000:80"
+    depends_on:
+      - user-service
+      - url-shortening-service
+      - analytics-service
+    networks:
+      - urlshortener-network
+
+volumes:
+  sqlserver_data:
+  redis_data:
+  rabbitmq_data:
+
+networks:
+  urlshortener-network:
+    driver: bridge

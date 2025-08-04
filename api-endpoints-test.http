@@ -1,0 +1,182 @@
+### URL Shortener Microservices API Tests
+### Make sure all services are running before testing
+
+# Variables
+@apiGateway = https://localhost:7000
+@userService = https://localhost:7001
+@urlService = https://localhost:7002
+@analyticsService = https://localhost:7003
+@authToken = {{login.response.body.token}}
+@userId = {{login.response.body.user.id}}
+@shortCode = {{shortenUrl.response.body.shortCode}}
+
+### === HEALTH CHECKS ===
+
+### API Gateway Health
+GET {{apiGateway}}/api/gateway/health
+
+### User Service Health  
+GET {{userService}}/api/auth/health
+
+### URL Service Health
+GET {{urlService}}/api/url/health
+
+### Analytics Service Health
+GET {{analyticsService}}/api/analytics/health
+
+### === USER SERVICE TESTS ===
+
+### Register User
+POST {{userService}}/api/auth/register
+Content-Type: application/json
+
+{
+  "email": "test@example.com",
+  "password": "TestPassword123!",
+  "firstName": "Test",
+  "lastName": "User"
+}
+
+### Login User
+# @name login
+POST {{userService}}/api/auth/login
+Content-Type: application/json
+
+{
+  "email": "test@example.com",
+  "password": "TestPassword123!"
+}
+
+### Get Current User
+GET {{userService}}/api/auth/me
+Authorization: Bearer {{authToken}}
+
+### Update User Profile
+PUT {{userService}}/api/auth/me
+Authorization: Bearer {{authToken}}
+Content-Type: application/json
+
+{
+  "firstName": "Updated",
+  "lastName": "User",
+  "email": "test@example.com"
+}
+
+### Change Password
+POST {{userService}}/api/auth/change-password
+Authorization: Bearer {{authToken}}
+Content-Type: application/json
+
+{
+  "currentPassword": "TestPassword123!",
+  "newPassword": "NewPassword123!"
+}
+
+### === URL SHORTENING SERVICE TESTS ===
+
+### Shorten URL
+# @name shortenUrl
+POST {{urlService}}/api/url/shorten
+Authorization: Bearer {{authToken}}
+Content-Type: application/json
+
+{
+  "originalUrl": "https://www.example.com",
+  "expirationDate": "2024-12-31T23:59:59Z",
+  "userId": "{{userId}}"
+}
+
+### Async Shorten URL
+POST {{urlService}}/api/url/shorten-async
+Authorization: Bearer {{authToken}}
+Content-Type: application/json
+
+{
+  "originalUrl": "https://www.google.com",
+  "requestId": "{{$guid}}",
+  "userId": "{{userId}}"
+}
+
+### Get URL Details
+GET {{urlService}}/api/url/{{shortCode}}
+Authorization: Bearer {{authToken}}
+
+### Redirect URL (will redirect)
+GET {{urlService}}/api/url/redirect/{{shortCode}}
+
+### Get User URLs
+GET {{urlService}}/api/url/user/{{userId}}?page=1&pageSize=10
+Authorization: Bearer {{authToken}}
+
+### Delete URL
+DELETE {{urlService}}/api/url/{{shortCode}}
+Authorization: Bearer {{authToken}}
+
+### === ANALYTICS SERVICE TESTS ===
+
+### Record Click Event
+POST {{analyticsService}}/api/analytics/click
+Authorization: Bearer {{authToken}}
+Content-Type: application/json
+
+{
+  "shortCode": "{{shortCode}}",
+  "ipAddress": "192.168.1.1",
+  "userAgent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36",
+  "referrer": "https://www.google.com",
+  "timestamp": "{{$datetime iso8601}}"
+}
+
+### Get URL Analytics
+GET {{analyticsService}}/api/analytics/url/{{shortCode}}
+Authorization: Bearer {{authToken}}
+
+### Get User Analytics
+GET {{analyticsService}}/api/analytics/user/{{userId}}
+Authorization: Bearer {{authToken}}
+
+### Get Dashboard Stats
+GET {{analyticsService}}/api/analytics/dashboard
+Authorization: Bearer {{authToken}}
+
+### Get Top URLs
+GET {{analyticsService}}/api/analytics/top-urls?count=5
+Authorization: Bearer {{authToken}}
+
+### Generate PDF Report
+GET {{analyticsService}}/api/analytics/report/url/{{shortCode}}/pdf
+Authorization: Bearer {{authToken}}
+
+### Generate CSV Report
+GET {{analyticsService}}/api/analytics/report/url/{{shortCode}}/csv
+Authorization: Bearer {{authToken}}
+
+### Generate User Report
+GET {{analyticsService}}/api/analytics/report/user/{{userId}}
+Authorization: Bearer {{authToken}}
+
+### === API GATEWAY TESTS ===
+
+### Get Registered Services
+GET {{apiGateway}}/api/gateway/services
+
+### Get Route Configuration
+GET {{apiGateway}}/api/gateway/routes
+
+### Health Check User Service
+POST {{apiGateway}}/api/gateway/services/UserService/health-check
+
+### Health Check URL Service
+POST {{apiGateway}}/api/gateway/services/UrlShorteningService/health-check
+
+### Health Check Analytics Service
+POST {{apiGateway}}/api/gateway/services/AnalyticsService/health-check
+
+### Get Next User Service Endpoint
+GET {{apiGateway}}/api/gateway/load-balancer/next/UserService
+
+### Get Next URL Service Endpoint
+GET {{apiGateway}}/api/gateway/load-balancer/next/UrlShorteningService
+
+### Get Next Analytics Service Endpoint
+GET {{apiGateway}}/api/gateway/load-balancer/next/AnalyticsService
