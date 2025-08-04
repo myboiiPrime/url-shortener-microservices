@@ -712,10 +712,10 @@
     </div>
 
     <script>
-        // Global variables - FIXED: Updated API base URL to use HTTP instead of HTTPS
+        // Global variables - UPDATED: Using production API Gateway URL
         let currentToken = '';
         let currentUserId = '';
-        const API_BASE = 'http://localhost:5000';
+        const API_BASE = 'https://url-shortener-microservices.onrender.com';
 
         // Tab management
         function showTab(tabName) {
@@ -937,8 +937,38 @@
             }
         }
 
+        async function recordClick() {
+            const shortCode = document.getElementById('click-shortcode').value;
+            
+            try {
+                const response = await fetch(`${API_BASE}/api/analytics/click`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ shortCode: shortCode })
+                });
+                
+                const result = await response.json();
+                showResponse('click-response', result, response.status);
+            } catch (error) {
+                showResponse('click-response', { error: error.message }, 500);
+            }
+        }
+
+        async function getDashboard() {
+            try {
+                const response = await fetch(`${API_BASE}/api/analytics/dashboard`, {
+                    headers: getAuthHeaders()
+                });
+                
+                const result = await response.json();
+                showResponse('dashboard-response', result, response.status);
+            } catch (error) {
+                showResponse('dashboard-response', { error: error.message }, 500);
+            }
+        }
+
         async function getTopUrls() {
-            const limit = document.getElementById('topurls-limit').value;
+            const limit = document.getElementById('top-limit').value;
             const url = limit ? `${API_BASE}/api/analytics/top-urls?limit=${limit}` : `${API_BASE}/api/analytics/top-urls`;
             
             try {
@@ -947,6 +977,22 @@
                 showResponse('topurls-response', result, response.status);
             } catch (error) {
                 showResponse('topurls-response', { error: error.message }, 500);
+            }
+        }
+
+        async function deleteUrl() {
+            const shortCode = document.getElementById('delete-shortcode').value;
+            
+            try {
+                const response = await fetch(`${API_BASE}/api/url/${shortCode}`, {
+                    method: 'DELETE',
+                    headers: getAuthHeaders()
+                });
+                
+                const result = await response.json();
+                showResponse('delete-response', result, response.status);
+            } catch (error) {
+                showResponse('delete-response', { error: error.message }, 500);
             }
         }
 
@@ -971,29 +1017,55 @@
             }
         }
 
-        async function getNextEndpoint() {
-            const serviceName = document.getElementById('loadbalancer-service').value;
+        async function checkServiceHealth() {
+            const serviceName = document.getElementById('service-name').value;
             
             try {
-                const response = await fetch(`${API_BASE}/api/gateway/load-balancer/next/${serviceName}`);
+                const response = await fetch(`${API_BASE}/api/gateway/load-balancer/${serviceName}`);
                 const result = await response.json();
-                showResponse('loadbalancer-response', result, response.status);
+                showResponse('servicehealth-response', result, response.status);
             } catch (error) {
-                showResponse('loadbalancer-response', { error: error.message }, 500);
+                showResponse('servicehealth-response', { error: error.message }, 500);
             }
         }
 
-        // Health Checks - FIXED: Updated to use correct health endpoints
+        async function getNextEndpoint() {
+            const serviceName = document.getElementById('endpoint-service').value;
+            
+            try {
+                const response = await fetch(`${API_BASE}/api/gateway/next-endpoint/${serviceName}`);
+                const result = await response.json();
+                showResponse('nextendpoint-response', result, response.status);
+            } catch (error) {
+                showResponse('nextendpoint-response', { error: error.message }, 500);
+            }
+        }
+
+        // Health Checks - FIXED: Use API Gateway health check endpoints
         async function checkHealth(service) {
-            const endpoints = {
-                gateway: `${API_BASE}/health`,                    // FIXED: Correct path
-                user: 'http://localhost:7001/health',             // FIXED: Correct path
-                url: 'http://localhost:7002/health',              // FIXED: Correct path
-                analytics: 'http://localhost:7003/health'         // FIXED: Correct path
-            };
+            let endpoint;
+            
+            if (service === 'gateway') {
+                endpoint = `${API_BASE}/api/gateway/health`;
+            } else {
+                // Use API Gateway's service health check endpoint
+                const serviceNames = {
+                    user: 'UserService',
+                    url: 'UrlShorteningService', 
+                    analytics: 'AnalyticsService'
+                };
+                endpoint = `${API_BASE}/api/gateway/services/${serviceNames[service]}/health-check`;
+            }
 
             try {
-                const response = await fetch(endpoints[service]);
+                const response = await fetch(endpoint, {
+                    method: service === 'gateway' ? 'GET' : 'POST',
+                    mode: 'cors',
+                    headers: {
+                        'Accept': 'application/json',
+                        'Content-Type': 'application/json'
+                    }
+                });
                 const result = await response.json();
                 showResponse(`health-${service}-response`, result, response.status);
             } catch (error) {
@@ -1007,14 +1079,29 @@
 
             for (const service of services) {
                 try {
-                    const endpoints = {
-                        gateway: `${API_BASE}/health`,
-                        user: 'http://localhost:7001/health',
-                        url: 'http://localhost:7002/health',
-                        analytics: 'http://localhost:7003/health'
-                    };
+                    let endpoint;
+                    let method = 'GET';
+                    
+                    if (service === 'gateway') {
+                        endpoint = `${API_BASE}/api/gateway/health`;
+                    } else {
+                        const serviceNames = {
+                            user: 'UserService',
+                            url: 'UrlShorteningService',
+                            analytics: 'AnalyticsService'
+                        };
+                        endpoint = `${API_BASE}/api/gateway/services/${serviceNames[service]}/health-check`;
+                        method = 'POST';
+                    }
 
-                    const response = await fetch(endpoints[service]);
+                    const response = await fetch(endpoint, {
+                        method: method,
+                        mode: 'cors',
+                        headers: {
+                            'Accept': 'application/json',
+                            'Content-Type': 'application/json'
+                        }
+                    });
                     const result = await response.json();
                     results[service] = {
                         status: response.status,
