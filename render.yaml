@@ -1,0 +1,71 @@
+services:
+  # API Gateway - Main entry point
+  - type: web
+    name: api-gateway
+    env: docker
+    dockerfilePath: ./src/ApiGateway/Dockerfile
+    dockerContext: .
+    envVars:
+      - key: ASPNETCORE_ENVIRONMENT
+        value: Production
+      - key: ASPNETCORE_URLS
+        value: http://+:10000
+      - key: Services__UserService__0__BaseUrl
+        value: https://user-service.onrender.com
+      - key: Services__UrlShorteningService__0__BaseUrl
+        value: https://url-shortening-service.onrender.com
+      - key: Services__AnalyticsService__0__BaseUrl
+        value: https://analytics-service.onrender.com
+
+  # User Service
+  - type: web
+    name: user-service
+    env: docker
+    dockerfilePath: ./src/UserService/Dockerfile
+    dockerContext: .
+    envVars:
+      - key: ASPNETCORE_ENVIRONMENT
+        value: Production
+      - key: ASPNETCORE_URLS
+        value: http://+:10000
+      - key: ConnectionStrings__DefaultConnection
+        fromDatabase:
+          name: main-db
+          property: connectionString
+
+  # URL Shortening Service
+  - type: web
+    name: url-shortening-service
+    env: docker
+    dockerfilePath: ./src/UrlShorteningService/Dockerfile
+    dockerContext: .
+    envVars:
+      - key: ASPNETCORE_ENVIRONMENT
+        value: Production
+      - key: ASPNETCORE_URLS
+        value: http://+:10000
+      - key: ConnectionStrings__DefaultConnection
+        fromDatabase:
+          name: main-db
+          property: connectionString
+
+  # Analytics Service
+  - type: web
+    name: analytics-service
+    env: docker
+    dockerfilePath: ./src/AnalyticsService/Dockerfile
+    dockerContext: .
+    envVars:
+      - key: ASPNETCORE_ENVIRONMENT
+        value: Production
+      - key: ASPNETCORE_URLS
+        value: http://+:10000
+      - key: ConnectionStrings__DefaultConnection
+        fromDatabase:
+          name: main-db
+          property: connectionString
+
+databases:
+  - name: main-db
+    databaseName: urlshortener
+    user: urlshortener

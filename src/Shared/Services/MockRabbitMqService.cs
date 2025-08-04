@@ -19,6 +19,12 @@ namespace UrlShortener.Shared.Services
         {
             try
             {
+                if (message == null)
+                {
+                    _logger.LogWarning($"[MOCK] Attempted to publish null message to queue '{queueName}'");
+                    return;
+                }
+
                 var json = JsonSerializer.Serialize(message);
                 _logger.LogInformation($"[MOCK] Published message to queue '{queueName}': {json}");
 
@@ -64,6 +70,7 @@ namespace UrlShortener.Shared.Services
                     {
                         return await messageHandler(typedMessage);
                     }
+                    _logger.LogWarning($"[MOCK] Received message of wrong type for queue '{queueName}'");
                     return false;
                 });
 

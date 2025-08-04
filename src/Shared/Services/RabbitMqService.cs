@@ -81,17 +81,25 @@ namespace UrlShortener.Shared.Services
                     try
                     {
                         var message = JsonSerializer.Deserialize<T>(json);
-                        var success = await messageHandler(message);
-                        
-                        if (success)
+                        if (message != null)
                         {
-                            _channel.BasicAck(deliveryTag: ea.DeliveryTag, multiple: false);
-                            _logger.LogInformation($"Successfully processed message from queue {queueName}");
+                            var success = await messageHandler(message);
+                            
+                            if (success)
+                            {
+                                _channel.BasicAck(deliveryTag: ea.DeliveryTag, multiple: false);
+                                _logger.LogInformation($"Successfully processed message from queue {queueName}");
+                            }
+                            else
+                            {
+                                _channel.BasicNack(deliveryTag: ea.DeliveryTag, multiple: false, requeue: true);
+                                _logger.LogWarning($"Failed to process message from queue {queueName}, requeuing");
+                            }
                         }
                         else
                         {
-                            _channel.BasicNack(deliveryTag: ea.DeliveryTag, multiple: false, requeue: true);
-                            _logger.LogWarning($"Failed to process message from queue {queueName}, requeuing");
+                            _logger.LogWarning($"Received null message from queue {queueName}, rejecting");
+                            _channel.BasicNack(deliveryTag: ea.DeliveryTag, multiple: false, requeue: false);
                         }
                     }
                     catch (Exception ex)
