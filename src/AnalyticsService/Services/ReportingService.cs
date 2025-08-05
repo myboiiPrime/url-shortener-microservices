@@ -1,5 +1,5 @@
 using System.Text;
-using UrlShortener.AnalyticsService.Models;
+using UrlShortener.Shared.Models;
 
 namespace UrlShortener.AnalyticsService.Services
 {

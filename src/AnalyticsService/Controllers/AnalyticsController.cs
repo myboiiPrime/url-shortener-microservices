@@ -1,6 +1,7 @@
 using Microsoft.AspNetCore.Mvc;
-using UrlShortener.AnalyticsService.Models;
+
 using UrlShortener.AnalyticsService.Services;
+using UrlShortener.Shared.Models;
 
 namespace UrlShortener.AnalyticsService.Controllers
 {
@@ -23,7 +24,7 @@ namespace UrlShortener.AnalyticsService.Controllers
         }
 
         [HttpPost("click")]
-        public async Task<IActionResult> RecordClick([FromBody] ClickEventDto clickEvent)
+        public async Task<IActionResult> RecordClick([FromBody] ClickEvent clickEvent)
         {
             try
             {

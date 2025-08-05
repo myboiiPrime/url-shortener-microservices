@@ -1,6 +1,7 @@
 using Microsoft.EntityFrameworkCore;
 using UrlShortener.AnalyticsService.Data;
-using UrlShortener.AnalyticsService.Models;
+
+using UrlShortener.Shared.Models;
 
 namespace UrlShortener.AnalyticsService.Services
 {
@@ -15,23 +16,17 @@ namespace UrlShortener.AnalyticsService.Services
             _logger = logger;
         }
 
-        public async Task RecordClickAsync(ClickEventDto clickEventDto)
+        public async Task RecordClickAsync(ClickEvent clickEvent)
         {
             try
             {
-                var clickEvent = new ClickEvent
-                {
-                    ShortCode = clickEventDto.ShortCode,
-                    OriginalUrl = clickEventDto.OriginalUrl,
-                    UserId = clickEventDto.UserId,
-                    IpAddress = clickEventDto.IpAddress,
-                    UserAgent = clickEventDto.UserAgent,
-                    Referer = clickEventDto.Referer,
-                    ClickedAt = DateTime.UtcNow
-                };
+                // No conversion needed - using unified model
+                // Just ensure ClickedAt is set if not already
+                if (clickEvent.ClickedAt == default)
+                    clickEvent.ClickedAt = DateTime.UtcNow;
 
                 // Parse user agent for device/browser info
-                ParseUserAgent(clickEvent, clickEventDto.UserAgent);
+                ParseUserAgent(clickEvent, clickEvent.UserAgent);
 
                 // Add click event
                 _context.ClickEvents.Add(clickEvent);
@@ -41,11 +36,12 @@ namespace UrlShortener.AnalyticsService.Services
 
                 await _context.SaveChangesAsync();
 
-                _logger.LogInformation("Click event recorded for short code: {ShortCode}", clickEventDto.ShortCode);
+                _logger.LogInformation("Recorded click for URL {ShortCode} by user {UserId}", 
+                    clickEvent.ShortCode, clickEvent.UserId);
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, "Error recording click event for short code: {ShortCode}", clickEventDto.ShortCode);
+                _logger.LogError(ex, "Error recording click event for short code: {ShortCode}", clickEvent.ShortCode);
                 throw;
             }
         }
@@ -97,8 +93,9 @@ namespace UrlShortener.AnalyticsService.Services
         {
             try
             {
+                var userIdString = userId.ToString();
                 var userUrls = await _context.UrlStatistics
-                    .Where(u => u.UserId == userId)
+                    .Where(u => u.UserId == userIdString)
                     .ToListAsync();
 
                 var reports = new List<AnalyticsReportDto>();
@@ -134,8 +131,9 @@ namespace UrlShortener.AnalyticsService.Services
 
                 if (userId.HasValue)
                 {
-                    urlQuery = urlQuery.Where(u => u.UserId == userId.Value);
-                    clickQuery = clickQuery.Where(c => c.UserId == userId.Value);
+                    var userIdString = userId.Value.ToString();
+                    urlQuery = urlQuery.Where(u => u.UserId == userIdString);
+                    clickQuery = clickQuery.Where(c => c.UserId == userIdString);
                 }
 
                 var totalUrls = await urlQuery.CountAsync();
@@ -194,7 +192,10 @@ namespace UrlShortener.AnalyticsService.Services
                 var query = _context.UrlStatistics.AsQueryable();
 
                 if (userId.HasValue)
-                    query = query.Where(u => u.UserId == userId.Value);
+                {
+                    var userIdString = userId.Value.ToString();
+                    query = query.Where(u => u.UserId == userIdString);
+                }
 
                 return await query
                     .OrderByDescending(u => u.TotalClicks)
@@ -229,7 +230,8 @@ namespace UrlShortener.AnalyticsService.Services
                     TotalClicks = 1,
                     UniqueClicks = 1,
                     LastClickAt = clickEvent.ClickedAt,
-                    LastUpdated = DateTime.UtcNow
+                    LastUpdated = DateTime.UtcNow,
+                    CreatedAt = DateTime.UtcNow
                 };
                 _context.UrlStatistics.Add(urlStats);
             }
@@ -251,7 +253,7 @@ namespace UrlShortener.AnalyticsService.Services
             }
         }
 
-        private void ParseUserAgent(ClickEvent clickEvent, string? userAgent)
+        private void ParseUserAgent(ClickEvent clickEvent, string userAgent)
         {
             if (string.IsNullOrEmpty(userAgent))
                 return;

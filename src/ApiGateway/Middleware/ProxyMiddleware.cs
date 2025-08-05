@@ -77,6 +77,16 @@ namespace UrlShortener.ApiGateway.Middleware
                     }
                 }
 
+                // Add original host information for backend services to construct external URLs
+                if (context.Request.Headers.ContainsKey("Host"))
+                {
+                    requestMessage.Headers.TryAddWithoutValidation("X-Original-Host", context.Request.Headers["Host"].ToString());
+                }
+                
+                // Add original scheme information
+                var originalScheme = context.Request.Scheme;
+                requestMessage.Headers.TryAddWithoutValidation("X-Original-Scheme", originalScheme);
+
                 // Copy request body for POST/PUT requests using streaming
                 if (context.Request.ContentLength > 0 || context.Request.Method == "POST" || context.Request.Method == "PUT")
                 {

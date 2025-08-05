@@ -1,5 +1,6 @@
 using Microsoft.EntityFrameworkCore;
-using UrlShortener.AnalyticsService.Models;
+
+using UrlShortener.Shared.Models;
 
 namespace UrlShortener.AnalyticsService.Data
 {
@@ -9,7 +10,7 @@ namespace UrlShortener.AnalyticsService.Data
         {
         }
 
-        public DbSet<ClickEvent> ClickEvents { get; set; }
+        public DbSet<Shared.Models.ClickEvent> ClickEvents { get; set; }
         public DbSet<UrlStatistics> UrlStatistics { get; set; }
 
         protected override void OnModelCreating(ModelBuilder modelBuilder)
@@ -17,7 +18,7 @@ namespace UrlShortener.AnalyticsService.Data
             base.OnModelCreating(modelBuilder);
 
             // ClickEvent configuration
-            modelBuilder.Entity<ClickEvent>(entity =>
+            modelBuilder.Entity<Shared.Models.ClickEvent>(entity =>
             {
                 entity.HasKey(e => e.Id);
                 entity.HasIndex(e => e.ShortCode);
@@ -29,7 +30,7 @@ namespace UrlShortener.AnalyticsService.Data
                 entity.Property(e => e.OriginalUrl).IsRequired().HasMaxLength(2048);
                 entity.Property(e => e.IpAddress).HasMaxLength(45);
                 entity.Property(e => e.UserAgent).HasMaxLength(500);
-                entity.Property(e => e.Referer).HasMaxLength(2048);
+                entity.Property(e => e.Referrer).HasMaxLength(2048);
                 entity.Property(e => e.Country).HasMaxLength(100);
                 entity.Property(e => e.City).HasMaxLength(100);
                 entity.Property(e => e.Device).HasMaxLength(50);
@@ -44,8 +45,8 @@ namespace UrlShortener.AnalyticsService.Data
                 entity.HasIndex(e => e.ShortCode).IsUnique();
                 entity.HasIndex(e => e.UserId);
                 entity.HasIndex(e => e.TotalClicks);
-                entity.HasIndex(e => e.CreatedAt);
                 entity.HasIndex(e => e.LastClickAt);
+                entity.HasIndex(e => e.LastUpdated);
                 
                 entity.Property(e => e.ShortCode).IsRequired().HasMaxLength(50);
                 entity.Property(e => e.OriginalUrl).IsRequired().HasMaxLength(2048);

@@ -1,5 +1,3 @@
-using UrlShortener.AnalyticsService.Models;
-
 namespace UrlShortener.AnalyticsService.Services
 {
     public interface IReportingService

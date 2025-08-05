@@ -17,22 +17,6 @@ if (isset($_SESSION['expires_at']) && time() > $_SESSION['expires_at']) {
     exit;
 }
 
-// Configuration - Deployment-friendly endpoint strategy
-$API_BASE_SERVER = 'http://api-gateway';  // For server-side PHP requests
-
-// Auto-detect client-side API base URL based on environment
-$protocol = isset($_SERVER['HTTPS']) && $_SERVER['HTTPS'] === 'on' ? 'https' : 'http';
-$host = $_SERVER['HTTP_HOST'];
-
-// If running in Docker (frontend on port 8080), use API Gateway on port 7000
-if (strpos($host, ':8080') !== false) {
-    $api_host = str_replace(':8080', ':7000', $host);
-    $API_BASE_CLIENT = $protocol . '://' . $api_host;
-} else {
-    // For local development or other deployments
-    $API_BASE_CLIENT = 'http://localhost:7000';
-}
-
 $SITE_NAME = 'QuickLink';
 $user = $_SESSION['user'];
 $token = $_SESSION['token'];
@@ -463,7 +447,7 @@ $token = $_SESSION['token'];
 
                 if (response.ok) {
                     document.getElementById('quickUrl').value = '';
-                    const shortUrl = result.shortUrl || `${window.location.origin}/s/${result.shortCode}`;
+                    const shortUrl = result.shortUrl || result.ShortUrl || `${window.location.origin}/s/${result.shortCode}`;
                     document.getElementById('quickResultLink').href = shortUrl;
                     document.getElementById('quickResultLink').textContent = shortUrl;
                     document.getElementById('quickResult').style.display = 'block';
@@ -567,7 +551,7 @@ $token = $_SESSION['token'];
                 <div class="url-card">
                     <div class="d-flex justify-content-between align-items-start">
                         <div class="flex-grow-1">
-                            <div class="short-url">${url.shortUrl || `${window.location.origin}/s/${url.shortCode}`}</div>
+                            <div class="short-url">${url.shortUrl || url.ShortUrl || `${window.location.origin}/s/${url.shortCode}`}</div>
                             <div class="original-url">${url.originalUrl}</div>
                             <div class="url-stats">
                                 <div class="stat-item">
@@ -585,13 +569,13 @@ $token = $_SESSION['token'];
                             </div>
                         </div>
                         <div class="ms-3">
-                            <button class="btn btn-outline-primary btn-action" onclick="copyUrl('${url.shortUrl || `${window.location.origin}/s/${url.shortCode}`}')">
+                            <button class="btn btn-outline-primary btn-action" onclick="copyUrl('${url.shortUrl || url.ShortUrl || `${window.location.origin}/s/${url.shortCode}`}')">
                                 <i class="fas fa-copy"></i>
                             </button>
                             <button class="btn btn-outline-info btn-action" onclick="viewAnalytics('${url.id}')">
                                 <i class="fas fa-chart-bar"></i>
                             </button>
-                            <a href="${url.shortUrl || `${window.location.origin}/s/${url.shortCode}`}" target="_blank" class="btn btn-outline-success btn-action">
+                            <a href="${url.shortUrl || url.ShortUrl || `${window.location.origin}/s/${url.shortCode}`}" target="_blank" class="btn btn-outline-success btn-action">
                                 <i class="fas fa-external-link-alt"></i>
                             </a>
                         </div>

@@ -2,9 +2,9 @@ using RabbitMQ.Client;
 using RabbitMQ.Client.Events;
 using System.Text;
 using System.Text.Json;
-using UrlShortener.AnalyticsService.Models;
 using UrlShortener.AnalyticsService.Services;
 using UrlShortener.Shared.Services;
+using UrlShortener.Shared.Models;
 
 namespace UrlShortener.AnalyticsService.Services
 {
@@ -30,7 +30,7 @@ namespace UrlShortener.AnalyticsService.Services
             try
             {
                 // Subscribe to click events using the IRabbitMqService interface
-                _rabbitMqService.Subscribe<ClickEventDto>(QueueName, async (clickEvent) =>
+                _rabbitMqService.Subscribe<ClickEvent>(QueueName, async (clickEvent) =>
                 {
                     try
                     {

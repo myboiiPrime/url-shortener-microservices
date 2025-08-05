@@ -12,15 +12,40 @@ namespace UrlShortener.UrlShorteningService.Controllers
         private readonly IUrlShorteningService _urlShorteningService;
         private readonly IRabbitMqService _rabbitMq;
         private readonly ILogger<UrlController> _logger;
+        private readonly IConfiguration _configuration;
 
         public UrlController(
             IUrlShorteningService urlShorteningService,
             IRabbitMqService rabbitMq,
-            ILogger<UrlController> logger)
+            ILogger<UrlController> logger,
+            IConfiguration configuration)
         {
             _urlShorteningService = urlShorteningService;
             _rabbitMq = rabbitMq;
             _logger = logger;
+            _configuration = configuration;
+        }
+
+        private string GetExternalBaseUrl()
+        {
+            var externalBaseUrl = _configuration["UrlShortening:ExternalBaseUrl"];
+            if (!string.IsNullOrEmpty(externalBaseUrl))
+            {
+                return externalBaseUrl;
+            }
+            
+            // Check for original host headers from API Gateway
+            if (Request.Headers.ContainsKey("X-Original-Host"))
+            {
+                var originalHost = Request.Headers["X-Original-Host"].ToString();
+                var originalScheme = Request.Headers.ContainsKey("X-Original-Scheme") 
+                    ? Request.Headers["X-Original-Scheme"].ToString() 
+                    : "http";
+                return $"{originalScheme}://{originalHost}";
+            }
+            
+            // Fallback to request host if configuration is not set
+            return $"{Request.Scheme}://{Request.Host}";
         }
 
         [HttpPost("shorten")]
@@ -40,7 +65,7 @@ namespace UrlShortener.UrlShorteningService.Controllers
                 {
                     ShortCode = result.ShortCode,
                     OriginalUrl = result.OriginalUrl,
-                    ShortUrl = $"{Request.Scheme}://{Request.Host}/s/{result.ShortCode}",
+                    ShortUrl = $"{GetExternalBaseUrl()}/s/{result.ShortCode}",
                     CreatedAt = result.CreatedAt,
                     ExpiresAt = result.ExpiresAt
                 });
@@ -73,7 +98,7 @@ namespace UrlShortener.UrlShorteningService.Controllers
                 {
                     RequestId = request.RequestId,
                     Message = "URL shortening request has been queued for processing",
-                    StatusUrl = $"{Request.Scheme}://{Request.Host}/api/url/status/{request.RequestId}"
+                    StatusUrl = $"{GetExternalBaseUrl()}/api/url/status/{request.RequestId}"
                 });
             }
             catch (Exception ex)
@@ -125,14 +150,15 @@ namespace UrlShortener.UrlShorteningService.Controllers
                     return NotFound("Short URL not found or expired");
                 }
 
-                // Publish click event for analytics
+                // Publish click event for analytics - use Shared.Models.ClickEvent for messaging
                 var clickEvent = new ClickEvent
                 {
                     ShortCode = shortCode,
                     OriginalUrl = mapping.OriginalUrl,
+                    UserId = mapping.UserId, // Keep as string for the shared model
                     IpAddress = HttpContext.Connection.RemoteIpAddress?.ToString(),
                     UserAgent = Request.Headers["User-Agent"].ToString(),
-                    Referrer = Request.Headers["Referer"].ToString()
+                    Referrer = Request.Headers["Referer"].ToString()  // Note: "Referrer" in shared model
                 };
 
                 _rabbitMq.PublishMessage("click_events", clickEvent);
@@ -186,7 +212,7 @@ namespace UrlShortener.UrlShorteningService.Controllers
                         ClickCount = u.ClickCount,
                         CreatedAt = u.CreatedAt,
                         ExpiresAt = u.ExpiresAt,
-                        ShortUrl = $"{Request.Scheme}://{Request.Host}/s/{u.ShortCode}"
+                        ShortUrl = $"{GetExternalBaseUrl()}/s/{u.ShortCode}"
                     })
                 });
             }

@@ -30,7 +30,7 @@ services:
       context: .
       dockerfile: src/UserService/Dockerfile
     environment:
-      - ASPNETCORE_ENVIRONMENT=Development
+      - ASPNETCORE_ENVIRONMENT=Production
       - ASPNETCORE_URLS=http://+:80
       - ConnectionStrings__DefaultConnection=Data Source=/app/data/UserService.db
       - ConnectionStrings__RabbitMQ=rabbitmq
@@ -48,7 +48,7 @@ services:
       context: .
       dockerfile: src/UrlShorteningService/Dockerfile
     environment:
-      - ASPNETCORE_ENVIRONMENT=Development
+      - ASPNETCORE_ENVIRONMENT=Production
       - ASPNETCORE_URLS=http://+:80
       - ConnectionStrings__DefaultConnection=Data Source=/app/data/UrlShorteningService.db
       - Redis__ConnectionString=redis:6379
@@ -68,7 +68,7 @@ services:
       context: .
       dockerfile: src/AnalyticsService/Dockerfile
     environment:
-      - ASPNETCORE_ENVIRONMENT=Development
+      - ASPNETCORE_ENVIRONMENT=Production
       - ASPNETCORE_URLS=http://+:80
       - ConnectionStrings__DefaultConnection=Data Source=/app/data/AnalyticsService.db
       - RabbitMQ__HostName=rabbitmq
@@ -86,11 +86,8 @@ services:
       context: .
       dockerfile: src/ApiGateway/Dockerfile
     environment:
-      - ASPNETCORE_ENVIRONMENT=Development
+      - ASPNETCORE_ENVIRONMENT=Production
       - ASPNETCORE_URLS=http://+:80
-      - Services__UserService__0__BaseUrl=http://user-service
-      - Services__UrlShorteningService__0__BaseUrl=http://url-shortening-service
-      - Services__AnalyticsService__0__BaseUrl=http://analytics-service
     ports:
       - "7000:80"
     depends_on:

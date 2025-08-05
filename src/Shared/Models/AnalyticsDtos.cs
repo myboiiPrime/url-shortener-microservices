@@ -1,7 +1,5 @@
 namespace UrlShortener.Shared.Models
 {
-    // ClickEventDto removed - using unified ClickEvent model instead
-
     public class AnalyticsReportDto
     {
         public string ShortCode { get; set; } = string.Empty;

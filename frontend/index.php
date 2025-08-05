@@ -1,20 +1,13 @@
 <?php
 session_start();
 
-// Configuration - Dual endpoint strategy
-$API_BASE_SERVER = 'http://api-gateway';  // For server-side PHP requests
-$API_BASE_CLIENT = 'http://localhost:5000'; // For client-side JavaScript requests
+// Use centralized configuration
+require_once 'config.php';
+
 $SITE_NAME = 'QuickLink';
 $SITE_DESCRIPTION = 'Fast, reliable URL shortening service';
 
-// Get the frontend base URL for short URL construction
-function getFrontendBaseUrl() {
-    $protocol = isset($_SERVER['HTTPS']) && $_SERVER['HTTPS'] === 'on' ? 'https' : 'http';
-    $host = $_SERVER['HTTP_HOST'] ?? 'localhost';
-    return $protocol . '://' . $host;
-}
-
-$FRONTEND_BASE_URL = getFrontendBaseUrl();
+// $FRONTEND_BASE_URL is already set in config.php
 
 // Check if user is logged in
 $isLoggedIn = isset($_SESSION['user']) && isset($_SESSION['token']);

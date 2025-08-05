@@ -199,6 +199,41 @@ $token = $_SESSION['token'];
             height: 3rem;
         }
 
+        /* Fix for chart container responsiveness */
+        .chart-card {
+            position: relative;
+            overflow: hidden;
+        }
+        
+        .chart-card canvas {
+            max-width: 100% !important;
+            height: auto !important;
+        }
+        
+        /* Override Bootstrap navbar flex issues that cause chart expansion */
+        @media (min-width: 992px) {
+            .navbar-expand-lg {
+                flex-wrap: wrap !important;
+                justify-content: space-between !important;
+            }
+        }
+        
+        /* Ensure chart containers don't overflow */
+        #clicksChart, #referrersChart {
+            max-width: 100% !important;
+            max-height: 400px !important;
+        }
+        
+        /* Fix for responsive chart containers */
+        .chart-card .row {
+            margin: 0;
+        }
+        
+        .chart-card .col-md-8,
+        .chart-card .col-md-4 {
+            padding: 0;
+        }
+
         @media (max-width: 768px) {
             .sidebar {
                 display: none;
@@ -206,6 +241,15 @@ $token = $_SESSION['token'];
             
             .main-content {
                 padding: 1rem;
+            }
+            
+            /* Additional mobile chart fixes */
+            .chart-card {
+                margin-bottom: 1rem;
+            }
+            
+            #clicksChart, #referrersChart {
+                max-height: 300px !important;
             }
         }
     </style>
@@ -401,7 +445,30 @@ $token = $_SESSION['token'];
                 // Get user ID from PHP session
                 const userId = '<?php echo $user['id']; ?>';
                 
-                // Load user URLs with analytics
+                let dashboardData = null;
+                let hasAnalyticsService = true;
+                
+                // Try to load dashboard stats with real analytics data
+                try {
+                    const dashboardResponse = await fetch(`${API_BASE}/api/analytics/dashboard`, {
+                        headers: {
+                            'Authorization': `Bearer ${token}`,
+                            'Content-Type': 'application/json'
+                        }
+                    });
+
+                    if (dashboardResponse.ok) {
+                        dashboardData = await dashboardResponse.json();
+                    } else {
+                        console.warn('Analytics service not available, using fallback data');
+                        hasAnalyticsService = false;
+                    }
+                } catch (error) {
+                    console.warn('Analytics service error:', error);
+                    hasAnalyticsService = false;
+                }
+                
+                // Load user URLs for basic data
                 const urlsResponse = await fetch(`${API_BASE}/api/url/user/${userId}`, {
                     headers: {
                         'Authorization': `Bearer ${token}`,
@@ -413,12 +480,41 @@ $token = $_SESSION['token'];
                     throw new Error('Failed to load URLs');
                 }
 
-                const response = await urlsResponse.json();
-                currentData = response.urls || response.Urls || [];
+                const urlsData = await urlsResponse.json();
+                currentData = urlsData.urls || urlsData.Urls || [];
                 
-                updateOverviewStats(currentData);
-                updateCharts(currentData);
-                updateTopUrls(currentData);
+                if (hasAnalyticsService && dashboardData) {
+                    // Update UI with real analytics data
+                    updateOverviewStats(dashboardData);
+                    updateClicksChart(dashboardData.last30DaysClicks || dashboardData.Last30DaysClicks || []);
+                    await updateReferrersChart(userId, true);
+                    updateTopUrls(dashboardData.topUrls || dashboardData.TopUrls || []);
+                } else {
+                    // Fallback to basic URL data when analytics service is not available
+                    const fallbackStats = {
+                        totalUrls: currentData.length,
+                        totalClicks: currentData.reduce((sum, url) => sum + (url.clickCount || 0), 0),
+                        clicksToday: 0,
+                        TotalUrls: currentData.length,
+                        TotalClicks: currentData.reduce((sum, url) => sum + (url.clickCount || 0), 0),
+                        ClicksToday: 0
+                    };
+                    
+                    updateOverviewStats(fallbackStats);
+                    updateClicksChart([]); // Empty chart
+                    updateReferrersChart(userId, false); // No data chart
+                    updateTopUrls(currentData.slice(0, 10).map(url => ({
+                        shortCode: url.shortCode,
+                        originalUrl: url.originalUrl,
+                        totalClicks: url.clickCount || 0,
+                        ShortCode: url.shortCode,
+                        OriginalUrl: url.originalUrl,
+                        TotalClicks: url.clickCount || 0
+                    })));
+                    
+                    // Show a warning message
+                    showWarning('Analytics service is currently unavailable. Showing basic statistics only.');
+                }
                 
             } catch (error) {
                 console.error('Error loading analytics:', error);
@@ -428,13 +524,12 @@ $token = $_SESSION['token'];
             }
         }
 
-        function updateOverviewStats(urls) {
-            const totalUrls = urls.length;
-            const totalClicks = urls.reduce((sum, url) => sum + (url.clickCount || 0), 0);
+        function updateOverviewStats(dashboardData) {
+            // Use real dashboard stats
+            const totalUrls = dashboardData.totalUrls || dashboardData.TotalUrls || 0;
+            const totalClicks = dashboardData.totalClicks || dashboardData.TotalClicks || 0;
+            const todayClicks = dashboardData.clicksToday || dashboardData.ClicksToday || 0;
             const avgClicks = totalUrls > 0 ? Math.round(totalClicks / totalUrls * 10) / 10 : 0;
-            
-            // Calculate today's clicks (mock data for now)
-            const todayClicks = Math.floor(totalClicks * 0.1);
 
             document.getElementById('totalUrls').textContent = totalUrls.toLocaleString();
             document.getElementById('totalClicks').textContent = totalClicks.toLocaleString();
@@ -443,49 +538,32 @@ $token = $_SESSION['token'];
         }
 
         function updateCharts(urls) {
-            updateClicksChart(urls);
-            updateReferrersChart();
+            // This function is kept for backward compatibility but now uses real data
+            // The actual chart updates are called directly from loadAnalyticsData
         }
 
-        function updateClicksChart(urls) {
+        function updateClicksChart(dailyClicksData) {
             const ctx = document.getElementById('clicksChart').getContext('2d');
             
-            // Generate stable time series data based on URL creation dates
-            const days = 30;
+            // Use real daily clicks data from the API
             const labels = [];
             const data = [];
             
-            for (let i = days - 1; i >= 0; i--) {
-                const date = new Date();
-                date.setDate(date.getDate() - i);
-                labels.push(date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' }));
-                
-                // Generate stable data based on URLs created on this day
-                const dayStart = new Date(date);
-                dayStart.setHours(0, 0, 0, 0);
-                const dayEnd = new Date(date);
-                dayEnd.setHours(23, 59, 59, 999);
-                
-                const urlsCreatedThisDay = urls.filter(url => {
-                    const createdDate = new Date(url.createdAt);
-                    return createdDate >= dayStart && createdDate <= dayEnd;
+            if (dailyClicksData && dailyClicksData.length > 0) {
+                // Use real data from API
+                dailyClicksData.forEach(dayData => {
+                    const date = new Date(dayData.date || dayData.Date);
+                    labels.push(date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' }));
+                    data.push(dayData.clicks || dayData.Clicks || 0);
                 });
-                
-                // Use a combination of URLs created and their click counts for stable data
-                let dailyClicks = 0;
-                urlsCreatedThisDay.forEach(url => {
-                    dailyClicks += (url.clickCount || 0);
-                });
-                
-                // If no URLs created this day, use a small portion of total clicks
-                if (dailyClicks === 0 && urls.length > 0) {
-                    const totalClicks = urls.reduce((sum, url) => sum + (url.clickCount || 0), 0);
-                    // Use a deterministic value based on the date to avoid randomness
-                    const seed = date.getDate() + date.getMonth() * 31;
-                    dailyClicks = Math.floor((totalClicks / days) * (0.5 + (seed % 10) / 20));
+            } else {
+                // If no data available, show empty chart for last 30 days
+                for (let i = 29; i >= 0; i--) {
+                    const date = new Date();
+                    date.setDate(date.getDate() - i);
+                    labels.push(date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' }));
+                    data.push(0);
                 }
-                
-                data.push(Math.max(0, dailyClicks));
             }
 
             // Only create chart if it doesn't exist, otherwise update data
@@ -506,14 +584,27 @@ $token = $_SESSION['token'];
                     options: {
                         responsive: true,
                         maintainAspectRatio: false,
+                        aspectRatio: 2,
+                        layout: {
+                            padding: 10
+                        },
                         scales: {
                             y: {
-                                beginAtZero: true
+                                beginAtZero: true,
+                                ticks: {
+                                    stepSize: 1
+                                }
                             }
                         },
                         plugins: {
                             legend: {
                                 display: false
+                            }
+                        },
+                        onResize: function(chart, size) {
+                            // Ensure chart doesn't exceed container bounds
+                            if (size.width > chart.canvas.parentNode.clientWidth) {
+                                chart.resize(chart.canvas.parentNode.clientWidth, size.height);
                             }
                         }
                     }
@@ -522,17 +613,62 @@ $token = $_SESSION['token'];
                 // Update existing chart data
                 clicksChart.data.labels = labels;
                 clicksChart.data.datasets[0].data = data;
-                clicksChart.update('none'); // Use 'none' animation mode for instant update
+                clicksChart.update('none');
             }
         }
 
-        function updateReferrersChart() {
+        async function updateReferrersChart(userId, useRealData = true) {
             const ctx = document.getElementById('referrersChart').getContext('2d');
             
-            // Mock referrer data
-            const referrers = ['Direct', 'Google', 'Facebook', 'Twitter', 'Other'];
-            const data = [45, 25, 15, 10, 5];
-            const colors = ['#4f46e5', '#06b6d4', '#10b981', '#f59e0b', '#ef4444'];
+            let referrers = ['No Data'];
+            let data = [1];
+            let colors = ['#e5e7eb'];
+            
+            if (useRealData) {
+                try {
+                    // Get real referrer data from user analytics
+                    const analyticsResponse = await fetch(`${API_BASE}/api/analytics/user/${userId}`, {
+                        headers: {
+                            'Authorization': `Bearer ${token}`,
+                            'Content-Type': 'application/json'
+                        }
+                    });
+
+                    if (analyticsResponse.ok) {
+                        const analyticsData = await analyticsResponse.json();
+                        
+                        // Aggregate referrer data from all URLs
+                        const referrerMap = new Map();
+                        
+                        if (analyticsData && Array.isArray(analyticsData)) {
+                            analyticsData.forEach(urlData => {
+                                if (urlData.countryStats || urlData.CountryStats) {
+                                    // For now, use country data as referrer data since the backend might not have referrer tracking yet
+                                    const stats = urlData.countryStats || urlData.CountryStats || [];
+                                    stats.forEach(stat => {
+                                        const country = stat.country || stat.Country || 'Unknown';
+                                        const clicks = stat.clicks || stat.Clicks || 0;
+                                        referrerMap.set(country, (referrerMap.get(country) || 0) + clicks);
+                                    });
+                                }
+                            });
+                        }
+
+                        if (referrerMap.size > 0) {
+                            // Convert map to arrays and sort by clicks
+                            const sortedReferrers = Array.from(referrerMap.entries())
+                                .sort((a, b) => b[1] - a[1])
+                                .slice(0, 5); // Top 5
+
+                            referrers = sortedReferrers.map(([name]) => name);
+                            data = sortedReferrers.map(([, clicks]) => clicks);
+                            colors = ['#4f46e5', '#06b6d4', '#10b981', '#f59e0b', '#ef4444'].slice(0, referrers.length);
+                        }
+                    }
+                } catch (error) {
+                    console.error('Error loading referrer data:', error);
+                }
+            }
 
             // Only create chart if it doesn't exist, otherwise update data
             if (!referrersChart) {
@@ -549,9 +685,23 @@ $token = $_SESSION['token'];
                     options: {
                         responsive: true,
                         maintainAspectRatio: false,
+                        aspectRatio: 1,
+                        layout: {
+                            padding: 10
+                        },
                         plugins: {
                             legend: {
-                                position: 'bottom'
+                                position: 'bottom',
+                                labels: {
+                                    boxWidth: 12,
+                                    padding: 8
+                                }
+                            }
+                        },
+                        onResize: function(chart, size) {
+                            // Ensure chart doesn't exceed container bounds
+                            if (size.width > chart.canvas.parentNode.clientWidth) {
+                                chart.resize(chart.canvas.parentNode.clientWidth, size.height);
                             }
                         }
                     }
@@ -561,16 +711,15 @@ $token = $_SESSION['token'];
                 referrersChart.data.labels = referrers;
                 referrersChart.data.datasets[0].data = data;
                 referrersChart.data.datasets[0].backgroundColor = colors;
-                referrersChart.update('none'); // Use 'none' animation mode for instant update
+                referrersChart.update('none');
             }
         }
 
-        function updateTopUrls(urls) {
+        function updateTopUrls(topUrlsData) {
             const container = document.getElementById('topUrlsList');
             
-            // Sort URLs by click count
-            const sortedUrls = [...urls].sort((a, b) => (b.clickCount || 0) - (a.clickCount || 0));
-            const topUrls = sortedUrls.slice(0, 10);
+            // Use real top URLs data from dashboard stats
+            const topUrls = topUrlsData || [];
 
             if (topUrls.length === 0) {
                 container.innerHTML = '<p class="text-muted text-center py-4">No URLs found. Create your first short URL!</p>';
@@ -583,15 +732,12 @@ $token = $_SESSION['token'];
                         <div class="flex-grow-1">
                             <div class="d-flex align-items-center mb-2">
                                 <span class="badge bg-secondary me-2">#${index + 1}</span>
-                                <span class="short-url">${url.shortCode}</span>
+                                <span class="short-url">${url.shortCode || url.ShortCode || 'N/A'}</span>
                             </div>
-                            <div class="original-url">${url.originalUrl}</div>
-                            <small class="text-muted">
-                                Created: ${new Date(url.createdAt).toLocaleDateString()}
-                            </small>
+                            <div class="original-url">${url.originalUrl || url.OriginalUrl || 'N/A'}</div>
                         </div>
                         <div class="text-end">
-                            <div class="click-count">${(url.clickCount || 0).toLocaleString()}</div>
+                            <div class="click-count">${(url.totalClicks || url.TotalClicks || 0).toLocaleString()}</div>
                             <small class="text-muted">clicks</small>
                         </div>
                     </div>
@@ -600,55 +746,51 @@ $token = $_SESSION['token'];
         }
 
         function applyFilters() {
+            // Apply filters to existing data without reloading charts
             if (!currentData) return;
             
-            const dateRange = document.getElementById('dateRange').value;
             const urlFilter = document.getElementById('urlFilter').value.toLowerCase();
             const sortBy = document.getElementById('sortBy').value;
             
-            let filteredData = [...currentData];
-            
-            // Apply URL filter
+            // Filter URLs based on search term
+            let filteredData = currentData;
             if (urlFilter) {
-                filteredData = filteredData.filter(url => 
-                    url.originalUrl.toLowerCase().includes(urlFilter) ||
-                    url.shortCode.toLowerCase().includes(urlFilter)
+                filteredData = currentData.filter(url => 
+                    (url.originalUrl || '').toLowerCase().includes(urlFilter) ||
+                    (url.shortCode || '').toLowerCase().includes(urlFilter)
                 );
             }
             
-            // Apply date filter
-            if (dateRange !== 'all') {
-                const days = parseInt(dateRange);
-                const cutoffDate = new Date();
-                cutoffDate.setDate(cutoffDate.getDate() - days);
-                
-                filteredData = filteredData.filter(url => 
-                    new Date(url.createdAt) >= cutoffDate
-                );
-            }
-            
-            // Apply sorting
+            // Sort URLs
             switch (sortBy) {
                 case 'clicks':
                     filteredData.sort((a, b) => (b.clickCount || 0) - (a.clickCount || 0));
                     break;
                 case 'recent':
-                    filteredData.sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
+                    filteredData.sort((a, b) => new Date(b.createdAt || 0) - new Date(a.createdAt || 0));
                     break;
                 case 'oldest':
-                    filteredData.sort((a, b) => new Date(a.createdAt) - new Date(b.createdAt));
+                    filteredData.sort((a, b) => new Date(a.createdAt || 0) - new Date(b.createdAt || 0));
                     break;
             }
             
-            updateOverviewStats(filteredData);
-            updateCharts(filteredData);
-            updateTopUrls(filteredData);
+            // Update only the top URLs list, don't recreate charts
+            updateTopUrls(filteredData.slice(0, 10).map(url => ({
+                shortCode: url.shortCode,
+                originalUrl: url.originalUrl,
+                totalClicks: url.clickCount || 0,
+                ShortCode: url.shortCode,
+                OriginalUrl: url.originalUrl,
+                TotalClicks: url.clickCount || 0
+            })));
         }
 
         function resetFilters() {
             document.getElementById('dateRange').value = '30';
             document.getElementById('urlFilter').value = '';
             document.getElementById('sortBy').value = 'clicks';
+            
+            // Apply filters to reset the display without reloading
             applyFilters();
         }
 
@@ -667,6 +809,43 @@ $token = $_SESSION['token'];
 
         function showLoading(show) {
             document.getElementById('loadingIndicator').style.display = show ? 'block' : 'none';
+        }
+
+        function showWarning(message) {
+            // Create or update warning message
+            let warningDiv = document.getElementById('analytics-warning');
+            if (!warningDiv) {
+                warningDiv = document.createElement('div');
+                warningDiv.id = 'analytics-warning';
+                warningDiv.className = 'bg-yellow-50 border border-yellow-200 rounded-lg p-4 mb-6';
+                warningDiv.innerHTML = `
+                    <div class="flex">
+                        <div class="flex-shrink-0">
+                            <svg class="h-5 w-5 text-yellow-400" viewBox="0 0 20 20" fill="currentColor">
+                                <path fill-rule="evenodd" d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z" clip-rule="evenodd" />
+                            </svg>
+                        </div>
+                        <div class="ml-3">
+                            <h3 class="text-sm font-medium text-yellow-800">Analytics Service Unavailable</h3>
+                            <div class="mt-2 text-sm text-yellow-700">
+                                <p>${message}</p>
+                            </div>
+                        </div>
+                    </div>
+                `;
+                
+                // Insert at the top of the main content
+                const mainContent = document.querySelector('.space-y-6');
+                if (mainContent) {
+                    mainContent.insertBefore(warningDiv, mainContent.firstChild);
+                }
+            } else {
+                // Update existing warning
+                const messageElement = warningDiv.querySelector('.text-yellow-700 p');
+                if (messageElement) {
+                    messageElement.textContent = message;
+                }
+            }
         }
 
         function showError(message) {

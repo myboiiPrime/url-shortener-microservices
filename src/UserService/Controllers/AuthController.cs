@@ -33,7 +33,7 @@ namespace UrlShortener.UserService.Controllers
                 // Rate limiting
                 var clientIp = HttpContext.Connection.RemoteIpAddress?.ToString() ?? "unknown";
                 var rateLimitKey = $"register:{clientIp}";
-                var isAllowed = await _rateLimitService.IsAllowedAsync(rateLimitKey, 5, TimeSpan.FromMinutes(5));
+                var isAllowed = await _rateLimitService.IsAllowedAsync(rateLimitKey, 5, TimeSpan.FromMinutes(2));
 
                 if (!isAllowed)
                 {
@@ -95,7 +95,7 @@ namespace UrlShortener.UserService.Controllers
                 // Rate limiting
                 var clientIp = HttpContext.Connection.RemoteIpAddress?.ToString() ?? "unknown";
                 var rateLimitKey = $"login:{clientIp}";
-                var isAllowed = await _rateLimitService.IsAllowedAsync(rateLimitKey, 10, TimeSpan.FromMinutes(15));
+                var isAllowed = await _rateLimitService.IsAllowedAsync(rateLimitKey, 5, TimeSpan.FromMinutes(2));
 
                 if (!isAllowed)
                 {

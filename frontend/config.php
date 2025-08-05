@@ -4,7 +4,15 @@
 
 // Detect environment
 function detectEnvironment() {
-    // Check for Render.com environment (multiple ways)
+    // Check for Docker environment FIRST (most reliable indicators)
+    if (file_exists('/.dockerenv') || 
+        isset($_ENV['API_GATEWAY_URL']) || 
+        isset($_ENV['DOCKER']) ||
+        (isset($_SERVER['SERVER_SOFTWARE']) && strpos($_SERVER['SERVER_SOFTWARE'], 'Apache') !== false && file_exists('/var/www/html'))) {
+        return 'docker';
+    }
+    
+    // Check for Render.com environment
     if (isset($_ENV['RENDER']) || 
         isset($_SERVER['RENDER']) || 
         isset($_ENV['RENDER_SERVICE_ID']) ||
@@ -13,7 +21,7 @@ function detectEnvironment() {
         return 'render';
     }
     
-    // Check for local development first (even if in Docker)
+    // Check for local development (only if not in Docker)
     $host = $_SERVER['HTTP_HOST'] ?? 'localhost';
     if (strpos($host, 'localhost') !== false || 
         strpos($host, '127.0.0.1') !== false ||
@@ -21,11 +29,6 @@ function detectEnvironment() {
         strpos($host, ':7000') !== false ||
         strpos($host, ':5000') !== false) {
         return 'local';
-    }
-    
-    // Check for Docker environment (after local check)
-    if (isset($_ENV['DOCKER']) || file_exists('/.dockerenv')) {
-        return 'docker';
     }
     
     // If we can't detect, assume production/render
@@ -51,14 +54,8 @@ function getApiConfig() {
             // For Docker deployment
             $serverUrl = $_ENV['API_GATEWAY_URL'] ?? 'http://api-gateway';
             
-            // Client-side API URL depends on how Docker is deployed
-            if (isset($_ENV['API_GATEWAY_URL'])) {
-                // If API_GATEWAY_URL is set, use it (for production Docker)
-                $clientUrl = $_ENV['API_GATEWAY_URL'];
-            } else {
-                // For local Docker development with port mapping
-                $clientUrl = $protocol . '://' . str_replace(':8080', ':7000', $host);
-            }
+            // Client-side API URL for Docker Compose - use localhost with port mapping
+            $clientUrl = 'http://localhost:7000';
             
             return [
                 'server' => $serverUrl,
@@ -67,14 +64,16 @@ function getApiConfig() {
             
         case 'local':
         default:
-            // For local development, use host.docker.internal to reach host from container
+            // For local development, check if we're in a container
             $isInContainer = file_exists('/.dockerenv');
             if ($isInContainer) {
+                // From container, use host.docker.internal to reach host services
                 return [
                     'server' => 'http://host.docker.internal:5000',
                     'client' => 'http://localhost:5000'
                 ];
             } else {
+                // Direct local development
                 return [
                     'server' => 'http://localhost:5000',
                     'client' => 'http://localhost:5000'

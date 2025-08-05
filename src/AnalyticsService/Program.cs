@@ -31,6 +31,7 @@ builder.Services.AddSingleton<IRabbitMqService>(provider =>
 
 // Application Services
 builder.Services.AddScoped<IAnalyticsService, AnalyticsService>();
+builder.Services.AddScoped<IReportingService, ReportingService>();
 builder.Services.AddHostedService<ClickEventConsumer>();
 
 var app = builder.Build();
