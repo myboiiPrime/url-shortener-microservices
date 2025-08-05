@@ -1,0 +1,46 @@
+FROM php:8.2-apache
+
+# Install system dependencies
+RUN apt-get update && apt-get install -y \
+    curl \
+    zip \
+    unzip \
+    && rm -rf /var/lib/apt/lists/*
+
+# Enable Apache modules
+RUN a2enmod rewrite headers deflate expires
+
+# Install PHP extensions
+RUN docker-php-ext-install pdo pdo_mysql
+
+# Copy Apache configuration for Render
+COPY apache-config.render.conf /etc/apache2/sites-available/000-default.conf
+
+# Copy application files
+COPY . /var/www/html/
+
+# Set proper permissions
+RUN chown -R www-data:www-data /var/www/html \
+    && chmod -R 755 /var/www/html
+
+# Create a startup script for Render that handles PORT environment variable
+RUN echo '#!/bin/bash\n\
+# Set environment variables for Render\n\
+export RENDER=1\n\
+export API_GATEWAY_URL=${API_GATEWAY_URL:-https://api-gateway.onrender.com}\n\
+\n\
+# Update Apache port configuration for Render\n\
+if [ ! -z "$PORT" ]; then\n\
+    echo "Listen $PORT" > /etc/apache2/ports.conf\n\
+    sed -i "s/:80/:$PORT/g" /etc/apache2/sites-available/000-default.conf\n\
+fi\n\
+\n\
+# Start Apache\n\
+apache2-foreground' > /usr/local/bin/start.sh \
+    && chmod +x /usr/local/bin/start.sh
+
+# Expose port (Render will set PORT environment variable)
+EXPOSE 80
+
+# Use the startup script
+CMD ["/usr/local/bin/start.sh"]

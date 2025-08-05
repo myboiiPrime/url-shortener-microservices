@@ -104,6 +104,11 @@ $user = $isLoggedIn ? $_SESSION['user'] : null;
             padding: 1.5rem;
             margin-top: 1rem;
             display: none;
+            color: #1f2937; /* Add black text color */
+        }
+
+        .result-card h5 {
+            color: #1f2937; /* Ensure the success message is black */
         }
 
         .short-url {
@@ -464,12 +469,19 @@ $user = $isLoggedIn ? $_SESSION['user'] : null;
         }
 
         function showResult(result, originalUrl) {
-            document.getElementById('shortUrl').textContent = result.ShortUrl || `${window.location.origin}/s/${result.ShortCode}`;
+            // Always use the frontend domain for the short URL display
+            const frontendBaseUrl = '<?php echo $FRONTEND_BASE_URL; ?>';
+            const shortUrl = `${frontendBaseUrl}/s/${result.ShortCode}`;
+            
+            document.getElementById('shortUrl').textContent = shortUrl;
             document.getElementById('originalUrlDisplay').textContent = originalUrl;
             document.getElementById('resultCard').style.display = 'block';
             
             // Store for copy function
-            window.currentShortUrl = result.ShortUrl || `${window.location.origin}/s/${result.ShortCode}`;
+            window.currentShortUrl = shortUrl;
+            
+            console.log('Short URL created:', shortUrl);
+            console.log('Short Code:', result.ShortCode);
         }
 
         function showError(message) {

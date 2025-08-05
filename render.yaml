@@ -1,4 +1,20 @@
 services:
+  # Frontend - PHP Web Application
+  - type: web
+    name: url-shortener-frontend
+    env: docker
+    dockerfilePath: ./frontend/Dockerfile.render
+    dockerContext: ./frontend
+    envVars:
+      - key: RENDER
+        value: "1"
+      - key: API_GATEWAY_URL
+        value: https://api-gateway.onrender.com
+      - key: ENVIRONMENT
+        value: render
+      - key: RENDER_SERVICE_ID
+        generateValue: true
+
   # API Gateway - Main entry point
   - type: web
     name: api-gateway

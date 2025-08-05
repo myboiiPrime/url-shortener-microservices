@@ -391,8 +391,11 @@ $token = $_SESSION['token'];
             showLoading(true);
             
             try {
+                // Get user ID from PHP session
+                const userId = '<?php echo $user['id']; ?>';
+                
                 // Load user URLs with analytics
-                const urlsResponse = await fetch(`${API_BASE}/api/urls`, {
+                const urlsResponse = await fetch(`${API_BASE}/api/url/user/${userId}`, {
                     headers: {
                         'Authorization': `Bearer ${token}`,
                         'Content-Type': 'application/json'
@@ -403,12 +406,12 @@ $token = $_SESSION['token'];
                     throw new Error('Failed to load URLs');
                 }
 
-                const urls = await urlsResponse.json();
-                currentData = urls;
+                const response = await urlsResponse.json();
+                currentData = response.urls || response.Urls || [];
                 
-                updateOverviewStats(urls);
-                updateCharts(urls);
-                updateTopUrls(urls);
+                updateOverviewStats(currentData);
+                updateCharts(currentData);
+                updateTopUrls(currentData);
                 
             } catch (error) {
                 console.error('Error loading analytics:', error);

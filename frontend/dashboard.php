@@ -1,6 +1,9 @@
 <?php
 session_start();
 
+// Include configuration
+require_once 'config.php';
+
 // Check if user is logged in
 if (!isset($_SESSION['user']) || !isset($_SESSION['token'])) {
     header('Location: login.php');
@@ -14,9 +17,22 @@ if (isset($_SESSION['expires_at']) && time() > $_SESSION['expires_at']) {
     exit;
 }
 
-// Configuration - Dual endpoint strategy
+// Configuration - Deployment-friendly endpoint strategy
 $API_BASE_SERVER = 'http://api-gateway';  // For server-side PHP requests
-$API_BASE_CLIENT = 'http://localhost:7000'; // For client-side JavaScript requests
+
+// Auto-detect client-side API base URL based on environment
+$protocol = isset($_SERVER['HTTPS']) && $_SERVER['HTTPS'] === 'on' ? 'https' : 'http';
+$host = $_SERVER['HTTP_HOST'];
+
+// If running in Docker (frontend on port 8080), use API Gateway on port 7000
+if (strpos($host, ':8080') !== false) {
+    $api_host = str_replace(':8080', ':7000', $host);
+    $API_BASE_CLIENT = $protocol . '://' . $api_host;
+} else {
+    // For local development or other deployments
+    $API_BASE_CLIENT = 'http://localhost:7000';
+}
+
 $SITE_NAME = 'QuickLink';
 $user = $_SESSION['user'];
 $token = $_SESSION['token'];
@@ -402,9 +418,15 @@ $token = $_SESSION['token'];
 
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
     <script>
+        // Configuration from PHP
         const API_BASE = '<?php echo $API_BASE_CLIENT; ?>';
         const authToken = '<?php echo $token; ?>';
         const userId = '<?php echo $user['id']; ?>';
+        const ENVIRONMENT = '<?php echo $ENVIRONMENT; ?>';
+        
+        // Debug information
+        console.log('Environment:', ENVIRONMENT);
+        console.log('API Base:', API_BASE);
         
         let currentPage = 1;
         const pageSize = 10;
