@@ -33,7 +33,7 @@ namespace UrlShortener.UserService.Controllers
                 // Rate limiting
                 var clientIp = HttpContext.Connection.RemoteIpAddress?.ToString() ?? "unknown";
                 var rateLimitKey = $"register:{clientIp}";
-                var isAllowed = await _rateLimitService.IsAllowedAsync(rateLimitKey, 5, TimeSpan.FromMinutes(15));
+                var isAllowed = await _rateLimitService.IsAllowedAsync(rateLimitKey, 5, TimeSpan.FromMinutes(5));
 
                 if (!isAllowed)
                 {
@@ -58,7 +58,27 @@ namespace UrlShortener.UserService.Controllers
             }
             catch (InvalidOperationException ex)
             {
-                return Conflict(new { Error = ex.Message });
+                // Handle specific conflict types for better frontend error handling
+                if (ex.Message.Contains("Username already exists"))
+                {
+                    return Conflict(new { 
+                        Error = ex.Message,
+                        Field = "username",
+                        Type = "username_conflict"
+                    });
+                }
+                else if (ex.Message.Contains("Email already exists"))
+                {
+                    return Conflict(new { 
+                        Error = ex.Message,
+                        Field = "email",
+                        Type = "email_conflict"
+                    });
+                }
+                else
+                {
+                    return Conflict(new { Error = ex.Message });
+                }
             }
             catch (Exception ex)
             {

@@ -13,7 +13,7 @@ namespace UrlShortener.UserService.Services
     {
         private const int SaltSize = 16;
         private const int HashSize = 32;
-        private const int Iterations = 10000;
+        private const int Iterations = 1000;
 
         public string HashPassword(string password)
         {

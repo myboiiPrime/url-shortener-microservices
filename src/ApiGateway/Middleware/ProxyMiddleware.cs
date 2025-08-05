@@ -55,9 +55,9 @@ namespace UrlShortener.ApiGateway.Middleware
                     return;
                 }
 
-                // Create HTTP client
+                // Create HTTP client with optimized timeout
                 using var httpClient = _httpClientFactory.CreateClient();
-                httpClient.Timeout = TimeSpan.FromSeconds(30);
+                httpClient.Timeout = TimeSpan.FromSeconds(10);
 
                 // Build target URL
                 var targetUrl = $"{endpoint.BaseUrl}{routeConfig.targetPath}{context.Request.QueryString}";
@@ -77,12 +77,10 @@ namespace UrlShortener.ApiGateway.Middleware
                     }
                 }
 
-                // Copy request body for POST/PUT requests
-                if (context.Request.ContentLength > 0)
+                // Copy request body for POST/PUT requests using streaming
+                if (context.Request.ContentLength > 0 || context.Request.Method == "POST" || context.Request.Method == "PUT")
                 {
-                    var bodyContent = new byte[context.Request.ContentLength.Value];
-                    await context.Request.Body.ReadAsync(bodyContent, 0, bodyContent.Length);
-                    requestMessage.Content = new ByteArrayContent(bodyContent);
+                    requestMessage.Content = new StreamContent(context.Request.Body);
                     
                     if (!string.IsNullOrEmpty(context.Request.ContentType))
                     {
@@ -98,20 +96,27 @@ namespace UrlShortener.ApiGateway.Middleware
                 // Copy response status
                 context.Response.StatusCode = (int)response.StatusCode;
 
-                // Copy response headers
+                // Copy response headers (excluding problematic ones that can cause chunked encoding issues)
+                var excludedResponseHeaders = new[] { "transfer-encoding", "content-length", "connection" };
+                
                 foreach (var header in response.Headers)
                 {
-                    context.Response.Headers[header.Key] = header.Value.ToArray();
+                    if (!excludedResponseHeaders.Contains(header.Key.ToLower()))
+                    {
+                        context.Response.Headers[header.Key] = header.Value.ToArray();
+                    }
                 }
 
                 foreach (var header in response.Content.Headers)
                 {
-                    context.Response.Headers[header.Key] = header.Value.ToArray();
+                    if (!excludedResponseHeaders.Contains(header.Key.ToLower()))
+                    {
+                        context.Response.Headers[header.Key] = header.Value.ToArray();
+                    }
                 }
 
-                // Copy response body
-                var responseContent = await response.Content.ReadAsByteArrayAsync();
-                await context.Response.Body.WriteAsync(responseContent, 0, responseContent.Length);
+                // Copy response body using streaming
+                await response.Content.CopyToAsync(context.Response.Body);
 
                 _logger.LogInformation("Proxied request to {TargetUrl} - Status: {StatusCode}", 
                     targetUrl, response.StatusCode);

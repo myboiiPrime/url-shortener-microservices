@@ -26,10 +26,10 @@ namespace UrlShortener.UserService.Services
             _logger = logger;
         }
 
-        public Task<bool> IsAllowedAsync(string key, int maxRequests, TimeSpan timeWindow)
+        public async Task<bool> IsAllowedAsync(string key, int maxRequests, TimeSpan timeWindow)
         {
-            var info = GetRateLimitInfoAsync(key, maxRequests, timeWindow);
-            return Task.FromResult(info.Result.IsAllowed);
+            var info = await GetRateLimitInfoAsync(key, maxRequests, timeWindow);
+            return info.IsAllowed;
         }
 
         public Task<RateLimitInfo> GetRateLimitInfoAsync(string key, int maxRequests, TimeSpan timeWindow)
