@@ -77,7 +77,8 @@ namespace UrlShortener.AnalyticsService.Services
                     DailyClicks = GetDailyClicks(clickEvents),
                     CountryStats = GetCountryStats(clickEvents),
                     BrowserStats = GetBrowserStats(clickEvents),
-                    DeviceStats = GetDeviceStats(clickEvents)
+                    DeviceStats = GetDeviceStats(clickEvents),
+                    ReferrerStats = GetReferrerStats(clickEvents)
                 };
 
                 return report;
@@ -348,6 +349,19 @@ namespace UrlShortener.AnalyticsService.Services
                     Clicks = g.Count()
                 })
                 .OrderByDescending(d => d.Clicks)
+                .ToList();
+        }
+
+        private List<ReferrerStatsDto> GetReferrerStats(List<ClickEvent> clickEvents)
+        {
+            return clickEvents
+                .GroupBy(c => string.IsNullOrEmpty(c.Referrer) ? "Direct" : c.Referrer!)
+                .Select(g => new ReferrerStatsDto
+                {
+                    Referrer = g.Key,
+                    Clicks = g.Count()
+                })
+                .OrderByDescending(r => r.Clicks)
                 .ToList();
         }
     }

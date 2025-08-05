@@ -56,7 +56,12 @@ namespace UrlShortener.ApiGateway.Middleware
                 }
 
                 // Create HTTP client with optimized timeout
-                using var httpClient = _httpClientFactory.CreateClient();
+                // For redirect endpoints, create a client that doesn't follow redirects
+                // This allows the browser to handle redirects to external URLs properly
+                using var httpClient = routeConfig.targetPath.Contains("/redirect/")
+                    ? new HttpClient(new HttpClientHandler() { AllowAutoRedirect = false })
+                    : _httpClientFactory.CreateClient();
+                
                 httpClient.Timeout = TimeSpan.FromSeconds(10);
 
                 // Build target URL

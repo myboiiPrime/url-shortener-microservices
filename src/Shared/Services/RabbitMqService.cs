@@ -26,6 +26,8 @@ namespace UrlShortener.Shared.Services
             var factory = new ConnectionFactory() 
             { 
                 HostName = hostName,
+                UserName = "admin",
+                Password = "admin123",
                 AutomaticRecoveryEnabled = true,
                 NetworkRecoveryInterval = TimeSpan.FromSeconds(10)
             };

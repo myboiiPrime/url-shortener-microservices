@@ -12,6 +12,7 @@ namespace UrlShortener.Shared.Models
         public List<CountryStatsDto> CountryStats { get; set; } = new();
         public List<BrowserStatsDto> BrowserStats { get; set; } = new();
         public List<DeviceStatsDto> DeviceStats { get; set; } = new();
+        public List<ReferrerStatsDto> ReferrerStats { get; set; } = new();
     }
 
     public class DailyClicksDto
@@ -35,6 +36,12 @@ namespace UrlShortener.Shared.Models
     public class DeviceStatsDto
     {
         public string Device { get; set; } = string.Empty;
+        public int Clicks { get; set; }
+    }
+
+    public class ReferrerStatsDto
+    {
+        public string Referrer { get; set; } = string.Empty;
         public int Clicks { get; set; }
     }
 

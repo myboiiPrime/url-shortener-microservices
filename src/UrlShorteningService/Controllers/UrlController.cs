@@ -150,6 +150,9 @@ namespace UrlShortener.UrlShorteningService.Controllers
                     return NotFound("Short URL not found or expired");
                 }
 
+                // Increment click count in the URL mapping
+                await _urlShorteningService.IncrementClickCountAsync(shortCode);
+
                 // Publish click event for analytics - use Shared.Models.ClickEvent for messaging
                 var clickEvent = new ClickEvent
                 {

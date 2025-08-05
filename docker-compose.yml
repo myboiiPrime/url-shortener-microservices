@@ -52,7 +52,7 @@ services:
       - ASPNETCORE_URLS=http://+:80
       - ConnectionStrings__DefaultConnection=Data Source=/app/data/UrlShorteningService.db
       - Redis__ConnectionString=redis:6379
-      - RabbitMQ__HostName=rabbitmq
+      - ConnectionStrings__RabbitMQ=rabbitmq
     ports:
       - "7002:80"
     depends_on:
@@ -71,7 +71,7 @@ services:
       - ASPNETCORE_ENVIRONMENT=Production
       - ASPNETCORE_URLS=http://+:80
       - ConnectionStrings__DefaultConnection=Data Source=/app/data/AnalyticsService.db
-      - RabbitMQ__HostName=rabbitmq
+      - ConnectionStrings__RabbitMQ=rabbitmq
     ports:
       - "7003:80"
     depends_on:

@@ -150,6 +150,31 @@ namespace UrlShortener.UrlShorteningService.Services
             }
         }
 
+        public async Task IncrementClickCountAsync(string shortCode)
+        {
+            try
+            {
+                var mapping = await _context.UrlMappings
+                    .FirstOrDefaultAsync(u => u.ShortCode == shortCode && u.IsActive);
+
+                if (mapping != null)
+                {
+                    mapping.ClickCount++;
+                    await _context.SaveChangesAsync();
+
+                    // Update cache with new click count
+                    await _cache.SetAsync($"url:{shortCode}", mapping, TimeSpan.FromHours(24));
+
+                    _logger.LogDebug($"Incremented click count for {shortCode} to {mapping.ClickCount}");
+                }
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, $"Failed to increment click count for: {shortCode}");
+                // Don't throw here to avoid breaking the redirect flow
+            }
+        }
+
         private bool IsShortCodeUnique(string shortCode)
         {
             return !_context.UrlMappings.Any(u => u.ShortCode == shortCode);

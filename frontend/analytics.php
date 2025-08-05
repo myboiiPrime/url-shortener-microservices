@@ -642,13 +642,13 @@ $token = $_SESSION['token'];
                         
                         if (analyticsData && Array.isArray(analyticsData)) {
                             analyticsData.forEach(urlData => {
-                                if (urlData.countryStats || urlData.CountryStats) {
-                                    // For now, use country data as referrer data since the backend might not have referrer tracking yet
-                                    const stats = urlData.countryStats || urlData.CountryStats || [];
+                                if (urlData.referrerStats || urlData.ReferrerStats) {
+                                    // Use real referrer data from the analytics service
+                                    const stats = urlData.referrerStats || urlData.ReferrerStats || [];
                                     stats.forEach(stat => {
-                                        const country = stat.country || stat.Country || 'Unknown';
+                                        const referrer = stat.referrer || stat.Referrer || 'Direct';
                                         const clicks = stat.clicks || stat.Clicks || 0;
-                                        referrerMap.set(country, (referrerMap.get(country) || 0) + clicks);
+                                        referrerMap.set(referrer, (referrerMap.get(referrer) || 0) + clicks);
                                     });
                                 }
                             });
