@@ -14,10 +14,8 @@ if (isset($_SESSION['expires_at']) && time() > $_SESSION['expires_at']) {
     exit;
 }
 
-// Configuration - Dual endpoint strategy
-$API_BASE_SERVER = 'http://api-gateway';  // For server-side PHP requests
-$API_BASE_CLIENT = 'http://localhost:7000'; // For client-side JavaScript requests
-$SITE_NAME = 'QuickLink';
+// Use centralized configuration
+require_once 'config.php';
 $user = $_SESSION['user'];
 $token = $_SESSION['token'];
 ?>

@@ -1,10 +1,8 @@
 <?php
 session_start();
 
-// Configuration - Dual endpoint strategy
-$API_BASE_SERVER = 'http://api-gateway';  // For server-side PHP requests
-$API_BASE_CLIENT = 'http://localhost:7000'; // For client-side JavaScript requests
-$SITE_NAME = 'QuickLink';
+// Use centralized configuration
+require_once 'config.php';
 
 // Redirect if already logged in
 if (isset($_SESSION['user']) && isset($_SESSION['token'])) {

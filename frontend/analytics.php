@@ -14,10 +14,8 @@ if (isset($_SESSION['expires_at']) && time() > $_SESSION['expires_at']) {
     exit;
 }
 
-// Configuration - Dual endpoint strategy
-$API_BASE_SERVER = 'http://api-gateway';  // For server-side PHP requests
-$API_BASE_CLIENT = 'http://localhost:7000'; // For client-side JavaScript requests
-$SITE_NAME = 'QuickLink';
+// Use centralized configuration
+require_once 'config.php';
 $user = $_SESSION['user'];
 $token = $_SESSION['token'];
 ?>
@@ -286,7 +284,7 @@ $token = $_SESSION['token'];
                         </div>
                         <div class="col-md-3">
                             <label for="urlFilter" class="form-label">URL Filter</label>
-                            <input type="text" class="form-control" id="urlFilter" placeholder="Search URLs..." onkeyup="applyFilters()">
+                            <input type="text" class="form-control" id="urlFilter" placeholder="Search URLs..." onkeyup="debouncedApplyFilters()">
                         </div>
                         <div class="col-md-3">
                             <label for="sortBy" class="form-label">Sort By</label>
@@ -381,11 +379,20 @@ $token = $_SESSION['token'];
         let clicksChart = null;
         let referrersChart = null;
         let currentData = null;
+        let debounceTimer = null;
 
         // Initialize page
         document.addEventListener('DOMContentLoaded', function() {
             loadAnalyticsData();
         });
+
+        // Debounced filter function to prevent rapid chart updates
+        function debouncedApplyFilters() {
+            clearTimeout(debounceTimer);
+            debounceTimer = setTimeout(() => {
+                applyFilters();
+            }, 300); // Wait 300ms after user stops typing
+        }
 
         async function loadAnalyticsData() {
             showLoading(true);
@@ -481,38 +488,42 @@ $token = $_SESSION['token'];
                 data.push(Math.max(0, dailyClicks));
             }
 
-            if (clicksChart) {
-                clicksChart.destroy();
-            }
-
-            clicksChart = new Chart(ctx, {
-                type: 'line',
-                data: {
-                    labels: labels,
-                    datasets: [{
-                        label: 'Clicks',
-                        data: data,
-                        borderColor: '#4f46e5',
-                        backgroundColor: 'rgba(79, 70, 229, 0.1)',
-                        tension: 0.4,
-                        fill: true
-                    }]
-                },
-                options: {
-                    responsive: true,
-                    maintainAspectRatio: false,
-                    scales: {
-                        y: {
-                            beginAtZero: true
-                        }
+            // Only create chart if it doesn't exist, otherwise update data
+            if (!clicksChart) {
+                clicksChart = new Chart(ctx, {
+                    type: 'line',
+                    data: {
+                        labels: labels,
+                        datasets: [{
+                            label: 'Clicks',
+                            data: data,
+                            borderColor: '#4f46e5',
+                            backgroundColor: 'rgba(79, 70, 229, 0.1)',
+                            tension: 0.4,
+                            fill: true
+                        }]
                     },
-                    plugins: {
-                        legend: {
-                            display: false
+                    options: {
+                        responsive: true,
+                        maintainAspectRatio: false,
+                        scales: {
+                            y: {
+                                beginAtZero: true
+                            }
+                        },
+                        plugins: {
+                            legend: {
+                                display: false
+                            }
                         }
                     }
-                }
-            });
+                });
+            } else {
+                // Update existing chart data
+                clicksChart.data.labels = labels;
+                clicksChart.data.datasets[0].data = data;
+                clicksChart.update('none'); // Use 'none' animation mode for instant update
+            }
         }
 
         function updateReferrersChart() {
@@ -523,30 +534,35 @@ $token = $_SESSION['token'];
             const data = [45, 25, 15, 10, 5];
             const colors = ['#4f46e5', '#06b6d4', '#10b981', '#f59e0b', '#ef4444'];
 
-            if (referrersChart) {
-                referrersChart.destroy();
-            }
-
-            referrersChart = new Chart(ctx, {
-                type: 'doughnut',
-                data: {
-                    labels: referrers,
-                    datasets: [{
-                        data: data,
-                        backgroundColor: colors,
-                        borderWidth: 0
-                    }]
-                },
-                options: {
-                    responsive: true,
-                    maintainAspectRatio: false,
-                    plugins: {
-                        legend: {
-                            position: 'bottom'
+            // Only create chart if it doesn't exist, otherwise update data
+            if (!referrersChart) {
+                referrersChart = new Chart(ctx, {
+                    type: 'doughnut',
+                    data: {
+                        labels: referrers,
+                        datasets: [{
+                            data: data,
+                            backgroundColor: colors,
+                            borderWidth: 0
+                        }]
+                    },
+                    options: {
+                        responsive: true,
+                        maintainAspectRatio: false,
+                        plugins: {
+                            legend: {
+                                position: 'bottom'
+                            }
                         }
                     }
-                }
-            });
+                });
+            } else {
+                // Update existing chart data
+                referrersChart.data.labels = referrers;
+                referrersChart.data.datasets[0].data = data;
+                referrersChart.data.datasets[0].backgroundColor = colors;
+                referrersChart.update('none'); // Use 'none' animation mode for instant update
+            }
         }
 
         function updateTopUrls(urls) {
@@ -637,6 +653,15 @@ $token = $_SESSION['token'];
         }
 
         function refreshData() {
+            // Destroy existing charts to prevent memory leaks
+            if (clicksChart) {
+                clicksChart.destroy();
+                clicksChart = null;
+            }
+            if (referrersChart) {
+                referrersChart.destroy();
+                referrersChart = null;
+            }
             loadAnalyticsData();
         }
 

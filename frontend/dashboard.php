@@ -463,8 +463,9 @@ $token = $_SESSION['token'];
 
                 if (response.ok) {
                     document.getElementById('quickUrl').value = '';
-                    document.getElementById('quickResultLink').href = result.ShortUrl;
-                    document.getElementById('quickResultLink').textContent = result.ShortUrl;
+                    const shortUrl = result.shortUrl || `${window.location.origin}/s/${result.shortCode}`;
+                    document.getElementById('quickResultLink').href = shortUrl;
+                    document.getElementById('quickResultLink').textContent = shortUrl;
                     document.getElementById('quickResult').style.display = 'block';
                     
                     // Refresh data
@@ -497,11 +498,11 @@ $token = $_SESSION['token'];
                 if (response.ok) {
                     const stats = await response.json();
                     
-                    document.getElementById('totalUrls').textContent = stats.TotalUrls || 0;
-                    document.getElementById('totalClicks').textContent = stats.TotalClicks || 0;
-                    document.getElementById('todayClicks').textContent = stats.TodayClicks || 0;
+                    document.getElementById('totalUrls').textContent = stats.totalUrls || 0;
+                    document.getElementById('totalClicks').textContent = stats.totalClicks || 0;
+                    document.getElementById('todayClicks').textContent = stats.todayClicks || 0;
                     
-                    const avgClicks = stats.TotalUrls > 0 ? Math.round(stats.TotalClicks / stats.TotalUrls) : 0;
+                    const avgClicks = stats.totalUrls > 0 ? Math.round(stats.totalClicks / stats.totalUrls) : 0;
                     document.getElementById('avgClicks').textContent = avgClicks;
                 }
             } catch (error) {
@@ -532,11 +533,11 @@ $token = $_SESSION['token'];
 
                 if (response.ok) {
                     const data = await response.json();
-                    displayUrls(data.Urls || []);
-                    updatePagination(data.TotalCount || 0);
+                    displayUrls(data.urls || []);
+                    updatePagination(data.totalCount || 0);
                     
                     document.getElementById('urlsCount').textContent = 
-                        `Showing ${data.Urls?.length || 0} of ${data.TotalCount || 0} URLs`;
+                        `Showing ${data.urls?.length || 0} of ${data.totalCount || 0} URLs`;
                 } else {
                     document.getElementById('urlsList').innerHTML = 
                         '<div class="alert alert-warning">Failed to load URLs</div>';
@@ -566,31 +567,31 @@ $token = $_SESSION['token'];
                 <div class="url-card">
                     <div class="d-flex justify-content-between align-items-start">
                         <div class="flex-grow-1">
-                            <div class="short-url">${url.ShortUrl || `${window.location.origin}/s/${url.ShortCode}`}</div>
-                            <div class="original-url">${url.OriginalUrl}</div>
+                            <div class="short-url">${url.shortUrl || `${window.location.origin}/s/${url.shortCode}`}</div>
+                            <div class="original-url">${url.originalUrl}</div>
                             <div class="url-stats">
                                 <div class="stat-item">
-                                    <div class="stat-value">${url.ClickCount || 0}</div>
+                                    <div class="stat-value">${url.clickCount || 0}</div>
                                     <div class="stat-label">Clicks</div>
                                 </div>
                                 <div class="stat-item">
-                                    <div class="stat-value">${url.UniqueClicks || 0}</div>
+                                    <div class="stat-value">${url.uniqueClicks || 0}</div>
                                     <div class="stat-label">Unique</div>
                                 </div>
                                 <div class="stat-item">
-                                    <div class="stat-value">${formatDate(url.CreatedAt)}</div>
+                                    <div class="stat-value">${formatDate(url.createdAt)}</div>
                                     <div class="stat-label">Created</div>
                                 </div>
                             </div>
                         </div>
                         <div class="ms-3">
-                            <button class="btn btn-outline-primary btn-action" onclick="copyUrl('${url.ShortUrl || `${window.location.origin}/s/${url.ShortCode}`}')">
+                            <button class="btn btn-outline-primary btn-action" onclick="copyUrl('${url.shortUrl || `${window.location.origin}/s/${url.shortCode}`}')">
                                 <i class="fas fa-copy"></i>
                             </button>
-                            <button class="btn btn-outline-info btn-action" onclick="viewAnalytics('${url.Id}')">
+                            <button class="btn btn-outline-info btn-action" onclick="viewAnalytics('${url.id}')">
                                 <i class="fas fa-chart-bar"></i>
                             </button>
-                            <a href="${url.ShortUrl || `${window.location.origin}/s/${url.ShortCode}`}" target="_blank" class="btn btn-outline-success btn-action">
+                            <a href="${url.shortUrl || `${window.location.origin}/s/${url.shortCode}`}" target="_blank" class="btn btn-outline-success btn-action">
                                 <i class="fas fa-external-link-alt"></i>
                             </a>
                         </div>

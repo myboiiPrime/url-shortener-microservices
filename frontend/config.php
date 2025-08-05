@@ -13,18 +13,19 @@ function detectEnvironment() {
         return 'render';
     }
     
-    // Check for Docker environment
-    if (isset($_ENV['DOCKER']) || file_exists('/.dockerenv')) {
-        return 'docker';
-    }
-    
-    // Check for local development
+    // Check for local development first (even if in Docker)
     $host = $_SERVER['HTTP_HOST'] ?? 'localhost';
     if (strpos($host, 'localhost') !== false || 
         strpos($host, '127.0.0.1') !== false ||
         strpos($host, ':8080') !== false ||
-        strpos($host, ':7000') !== false) {
+        strpos($host, ':7000') !== false ||
+        strpos($host, ':5000') !== false) {
         return 'local';
+    }
+    
+    // Check for Docker environment (after local check)
+    if (isset($_ENV['DOCKER']) || file_exists('/.dockerenv')) {
+        return 'docker';
     }
     
     // If we can't detect, assume production/render
@@ -66,10 +67,19 @@ function getApiConfig() {
             
         case 'local':
         default:
-            return [
-                'server' => 'http://localhost:7000',
-                'client' => 'http://localhost:7000'
-            ];
+            // For local development, use host.docker.internal to reach host from container
+            $isInContainer = file_exists('/.dockerenv');
+            if ($isInContainer) {
+                return [
+                    'server' => 'http://host.docker.internal:5000',
+                    'client' => 'http://localhost:5000'
+                ];
+            } else {
+                return [
+                    'server' => 'http://localhost:5000',
+                    'client' => 'http://localhost:5000'
+                ];
+            }
     }
 }
 

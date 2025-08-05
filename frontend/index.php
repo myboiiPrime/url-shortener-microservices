@@ -3,7 +3,7 @@ session_start();
 
 // Configuration - Dual endpoint strategy
 $API_BASE_SERVER = 'http://api-gateway';  // For server-side PHP requests
-$API_BASE_CLIENT = 'http://localhost:7000'; // For client-side JavaScript requests
+$API_BASE_CLIENT = 'http://localhost:5000'; // For client-side JavaScript requests
 $SITE_NAME = 'QuickLink';
 $SITE_DESCRIPTION = 'Fast, reliable URL shortening service';
 
@@ -480,7 +480,7 @@ $user = $isLoggedIn ? $_SESSION['user'] : null;
         function showResult(result, originalUrl) {
             // Always use the frontend domain for the short URL display
             const frontendBaseUrl = '<?php echo $FRONTEND_BASE_URL; ?>';
-            const shortUrl = `${frontendBaseUrl}/s/${result.ShortCode}`;
+            const shortUrl = `${frontendBaseUrl}/s/${result.shortCode}`;  // Changed from ShortCode to shortCode
             
             document.getElementById('shortUrl').textContent = shortUrl;
             document.getElementById('originalUrlDisplay').textContent = originalUrl;
@@ -490,7 +490,7 @@ $user = $isLoggedIn ? $_SESSION['user'] : null;
             window.currentShortUrl = shortUrl;
             
             console.log('Short URL created:', shortUrl);
-            console.log('Short Code:', result.ShortCode);
+            console.log('Short Code:', result.shortCode);  // Changed from ShortCode to shortCode
         }
 
         function showError(message) {

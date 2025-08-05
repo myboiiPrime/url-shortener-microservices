@@ -1,8 +1,6 @@
 <?php
-// Configuration - Dual endpoint strategy
-$API_BASE_SERVER = 'http://api-gateway';  // For server-side PHP requests
-$API_BASE_CLIENT = 'http://localhost:7000'; // For client-side JavaScript requests
-$SITE_NAME = 'QuickLink';
+// Include the proper configuration
+require_once 'config.php';
 
 // Get the short code from URL
 $shortCode = $_GET['code'] ?? '';
@@ -12,13 +10,10 @@ if (empty($shortCode)) {
     exit;
 }
 
-// Redirect to API Gateway for URL resolution
-$redirectUrl = $API_BASE_SERVER . '/api/url/redirect/' . urlencode($shortCode);
+// Try to get the URL info first, then redirect
+$apiUrl = $API_BASE_SERVER . '/api/url/' . urlencode($shortCode);
 
 try {
-    // Call the redirect API
-    $redirectUrl = $API_BASE_SERVER . '/api/url/redirect/' . urlencode($shortCode);
-    
     // Create context for the request
     $context = stream_context_create([
         'http' => [
@@ -33,26 +28,50 @@ try {
         ]
     ]);
     
-    // Make the request
-    $response = file_get_contents($redirectUrl, false, $context);
+    // Make the request to get URL info
+    $response = file_get_contents($apiUrl, false, $context);
     
     if ($response === false) {
-        throw new Exception('Failed to fetch redirect URL');
+        throw new Exception('Failed to fetch URL info');
     }
     
     $data = json_decode($response, true);
     
-    if (isset($data['OriginalUrl'])) {
+    if (isset($data['originalUrl'])) {
+        // Now call the redirect endpoint to track the click
+        $redirectUrl = $API_BASE_SERVER . '/api/url/redirect/' . urlencode($shortCode);
+        
+        // Make a request to the redirect endpoint (this will track analytics)
+        $redirectContext = stream_context_create([
+            'http' => [
+                'method' => 'GET',
+                'header' => [
+                    'User-Agent: ' . ($_SERVER['HTTP_USER_AGENT'] ?? 'Unknown'),
+                    'X-Forwarded-For: ' . ($_SERVER['REMOTE_ADDR'] ?? 'Unknown'),
+                    'X-Real-IP: ' . ($_SERVER['REMOTE_ADDR'] ?? 'Unknown'),
+                    'Referer: ' . ($_SERVER['HTTP_REFERER'] ?? ''),
+                ],
+                'timeout' => 5
+            ]
+        ]);
+        
+        // Try to call redirect endpoint for analytics (don't wait for response)
+        @file_get_contents($redirectUrl, false, $redirectContext);
+        
         // Redirect to the original URL
-        header('Location: ' . $data['OriginalUrl']);
+        header('Location: ' . $data['originalUrl']);
         exit;
     } else {
         throw new Exception('Invalid response from API');
     }
     
 } catch (Exception $e) {
-    // Log error and redirect to 404 page
+    // Log error and show 404 page
     error_log('Redirect error: ' . $e->getMessage());
+    error_log('API URL attempted: ' . $apiUrl);
+    error_log('Environment: ' . $ENVIRONMENT);
+    error_log('API Server: ' . $API_BASE_SERVER);
+    error_log('Short Code: ' . $shortCode);
     http_response_code(404);
 }
 ?>
