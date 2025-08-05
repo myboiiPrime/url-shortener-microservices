@@ -7,6 +7,15 @@ $API_BASE_CLIENT = 'http://localhost:7000'; // For client-side JavaScript reques
 $SITE_NAME = 'QuickLink';
 $SITE_DESCRIPTION = 'Fast, reliable URL shortening service';
 
+// Get the frontend base URL for short URL construction
+function getFrontendBaseUrl() {
+    $protocol = isset($_SERVER['HTTPS']) && $_SERVER['HTTPS'] === 'on' ? 'https' : 'http';
+    $host = $_SERVER['HTTP_HOST'] ?? 'localhost';
+    return $protocol . '://' . $host;
+}
+
+$FRONTEND_BASE_URL = getFrontendBaseUrl();
+
 // Check if user is logged in
 $isLoggedIn = isset($_SESSION['user']) && isset($_SESSION['token']);
 $user = $isLoggedIn ? $_SESSION['user'] : null;
